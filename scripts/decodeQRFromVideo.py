@@ -1,3 +1,9 @@
+# This application has been tested with:
+# Python 3.7.6
+# OpenCV 4.1.1
+# Requires pyzbar
+# See Dockerfile in root. This contains a docker image of a custom python interpreter with the needed packages
+
 # Importing all necessary libraries
 import cv2
 from pyzbar import pyzbar

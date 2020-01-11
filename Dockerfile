@@ -23,8 +23,7 @@ RUN apt-get update \
         pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install numpy
-RUN pip install pyzbar
+RUN pip install numpy pyzbar
 
 WORKDIR /
 ENV OPENCV_VERSION="4.1.1"
