@@ -25,12 +25,12 @@ try:
 
         # if frames remaining, continue reading frames
         if ret:
+            print("Frame# " + str(currentframe))
 
             # find the barcodes in the frame and decode each of the barcodes
             decodedBarcodes = pyzbar.decode(frame)
 
             # loop over the detected barcodes in the frame (there should only be one)
-            print("Frame# " + str(currentframe))
             for barcode in decodedBarcodes:
                 print('Type : ', barcode.type)
                 print('Data : ', barcode.data,'\n')
