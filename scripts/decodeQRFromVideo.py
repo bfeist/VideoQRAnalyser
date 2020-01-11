@@ -8,59 +8,55 @@ import datetime
 # cam = cv2.VideoCapture("../vid/IMG_0690.mov")
 cam = cv2.VideoCapture("../vid/IMG_0690_1080p_trimmed.mov")
 
+#get frames per second of video for use in start time calc
 fps = round(cam.get(cv2.CAP_PROP_FPS))
 
 currentframe = 0
-decodedCodes = []
-tempDict = {}
 
 firstSeconds = 0
 
 class BreakIt(Exception): pass
 
 try:
-    while(True):
+    # Loop through all of the frames in the video
+    while True:
         # reading from frame
         ret,frame = cam.read()
 
+        # if frames remaining, continue reading frames
         if ret:
-            # if video is still left continue reading frames
 
-            # find the barcodes in the image and decode each of the barcodes
+            # find the barcodes in the frame and decode each of the barcodes
             decodedBarcodes = pyzbar.decode(frame)
 
-            # loop over the detected barcodes
+            # loop over the detected barcodes in the frame (there should only be one)
             print("Frame# " + str(currentframe))
             for barcode in decodedBarcodes:
                 print('Type : ', barcode.type)
                 print('Data : ', barcode.data,'\n')
 
-                tempDict['framenum'] = currentframe
-                tempDict['data'] = barcode.data
-                decodedCodes.append(tempDict.copy())
+                if barcode.type == 'QRCODE':
+                    dataArray = barcode.data.decode('utf-8').split("/") #split the decoded string by / to get items
+                    timestring = dataArray[0] + " " + dataArray[1][:-3] #assemble a proper Datetime out of items
+                    currSeconds = int(timestring[-2:]) #get the seconds value out of the QR time
 
-                dataArray = barcode.data.decode('utf-8').split("/")
+                    if firstSeconds == 0:
+                        firstSeconds = currSeconds
 
-                timestring = dataArray[0] + " " + dataArray[1]
-                # timestring.decode('UTF-8')
-                timestring = timestring[:-3]
-                currSeconds = timestring[-2:]
-                # print(timestring)
+                    # Detect if the QR time's second value has rolled over on this frame.
+                    # If so then this frame should be used to determine time using framerate math
+                    if currSeconds != firstSeconds:
+                        secondsIntoVideo = currentframe / fps
+                        print("Time rollover detected " + str(secondsIntoVideo) + " seconds into the video")
 
-                if firstSeconds == 0:
-                    firstSeconds = int(currSeconds)
+                        #create Datetime object out of decoded QR time
+                        currTimeDatetime = datetime.datetime.strptime(timestring, '%Y-%m-%d %H:%M:%S')
 
-                if int(currSeconds) - firstSeconds == 1:
-                    # if the first detected QR code in the next second is detected, then this frame should be used to determine time using framerate math
-                    secondsIntoVideo = currentframe / fps
-                    print("Time rollover detected " + str(secondsIntoVideo) + " seconds into the video")
+                        #subtract seconds since beginning of video of current frame from the QR time to determine video start time
+                        videoStartTime = currTimeDatetime - datetime.timedelta(seconds=secondsIntoVideo)
 
-                    currTimeDatetime = datetime.datetime.strptime(timestring, '%Y-%m-%d %H:%M:%S')
-                    print(currTimeDatetime)
-                    videoStartTime = currTimeDatetime - datetime.timedelta(seconds=secondsIntoVideo)
-
-                    print("Calculated video start time: " + str(videoStartTime))
-                    raise BreakIt
+                        print("Calculated video start time: " + str(videoStartTime))
+                        raise BreakIt
 
             currentframe += 1
         else:
@@ -68,6 +64,5 @@ try:
 except BreakIt:
     pass
 
-# Release all space and windows once done
+# Release all space once done
 cam.release()
-# cv2.destroyAllWindows()
