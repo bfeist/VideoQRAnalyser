@@ -4,9 +4,9 @@ from pyzbar import pyzbar
 
 import cv2
 
-imagePath = '../tmp'
+imagePath = '../../tmp'
 
-imageFilename = 'frame0173.jpg'
+imageFilename = 'frame0241.jpg'
 # for imageFilename in os.listdir(imagePath):
 # load the input image
 # image = cv2.imread(imagePath + '/' + imageFilename)
@@ -19,5 +19,5 @@ decodedBarcodes = pyzbar.decode(image)
 print(imageFilename)
 for barcode in decodedBarcodes:
     print('Type : ', barcode.type)
-    print('Data : ', barcode.data,'\n')
+    print('Data : ', barcode.data.decode('utf-8'),'\n')
 

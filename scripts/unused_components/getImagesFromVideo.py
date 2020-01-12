@@ -3,9 +3,9 @@ import cv2
 import os
 
 # Read the video from specified path
-cam = cv2.VideoCapture("../vid/IMG_0690_1080p.mov")
+cam = cv2.VideoCapture("../../vid/IMG_0690_1080p_trimmed.mov")
 
-imageOutputPath = '../tmp'
+imageOutputPath = '../../tmp'
 
 try:
     # creating a folder named data
