@@ -1,0 +1,13 @@
+{
+  "python.pythonPath": "C:\\Users\\Feist\\scoop\\apps\\python\\current\\python.exe",
+
+  "git.ignoreLimitWarning": true,
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2,
+  "python.formatting.provider": "black",
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "python.formatting.blackArgs": ["--line-length", "120"],
+  "[python]": {
+    "editor.defaultFormatter": null
+  }
+}
