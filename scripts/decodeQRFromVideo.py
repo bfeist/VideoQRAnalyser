@@ -1,5 +1,6 @@
 import cv2
 from pyzbar import pyzbar
+from pyzbar.pyzbar import ZBarSymbol
 import os
 import datetime
 import dateutil.parser
@@ -26,10 +27,10 @@ try:
 
         # if frames remaining, continue reading frames
         if ret:
-            print("Searching Frame# " + str(currentframe))
+            print("Searching Frame# " + str(currentframe), end='\r', flush=True)
 
             # find the barcodes in the frame and decode each of the barcodes
-            decodedBarcodes = pyzbar.decode(frame)
+            decodedBarcodes = pyzbar.decode(frame, symbols=[ZBarSymbol.QRCODE])
 
             # loop over the detected barcodes in the frame (there should only be one)
             for barcode in decodedBarcodes:
