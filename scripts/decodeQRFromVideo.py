@@ -34,6 +34,7 @@ try:
 
             # loop over the detected barcodes in the frame (there should only be one)
             for barcode in decodedBarcodes:
+                print("\n")
                 print("Type : ", barcode.type)
                 print("Data : ", barcode.data)
 
