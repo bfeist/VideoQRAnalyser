@@ -42,16 +42,17 @@ if __name__ == "__main__":
 
     with Pool(processes=16) as pool:
         # Loop through all of the frames in the video
-        while True:
-            # reading from frame
-            ret, frame = cam.read()
 
-            # if frames remaining, continue reading frames
-            if ret:
-                # send frame to pool worker process
-                res = pool.apply_async(f, (frame, currentframe))  # runs in *only* one process
-                result = res.get(timeout=1)
-                try:
+        try:
+            while True:
+                # reading from frame
+                ret, frame = cam.read()
+
+                # if frames remaining, continue reading frames
+                if ret:
+                    # send frame to pool worker process
+                    res = pool.apply_async(f, (frame, currentframe))  # runs in *only* one process
+                    result = res.get(timeout=1)
                     if result != 0:
                         # parse encoded time into date
                         qrTimestamp = dateutil.parser.isoparse(result.decode("utf-8"))
@@ -78,12 +79,12 @@ if __name__ == "__main__":
 
                             print("Calculated video start time: " + str(videoStartTime.isoformat().replace("+00:00", "Z")))
                             raise BreakIt()
-                catch(e):
-                    pass
+                    
 
-                currentframe += 1
-            else:
-                break
-
+                    currentframe += 1
+                else:
+                    break
+        catch BreakIt:
+            pass               
     # Release all space once done
     cam.release()
