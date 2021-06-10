@@ -48,34 +48,38 @@ if __name__ == "__main__":
 
             # if frames remaining, continue reading frames
             if ret:
+                # send frame to pool worker process
                 res = pool.apply_async(f, (frame, currentframe))  # runs in *only* one process
                 result = res.get(timeout=1)
-                if result != 0:
-                    # parse encoded time into date
-                    qrTimestamp = dateutil.parser.isoparse(result.decode("utf-8"))
-                    print(
-                        "Frame# "
-                        + str(currentframe)
-                        + " QR Timestamp: "
-                        + qrTimestamp.isoformat().replace("+00:00", "Z")
-                        + "\n"
-                    )
-                    # get seconds value
-                    currSeconds = qrTimestamp.second
-                    if firstSeconds == 0:
-                        firstSeconds = currSeconds
+                try:
+                    if result != 0:
+                        # parse encoded time into date
+                        qrTimestamp = dateutil.parser.isoparse(result.decode("utf-8"))
+                        print(
+                            "Frame# "
+                            + str(currentframe)
+                            + " QR Timestamp: "
+                            + qrTimestamp.isoformat().replace("+00:00", "Z")
+                            + "\n"
+                        )
+                        # get seconds value
+                        currSeconds = qrTimestamp.second
+                        if firstSeconds == 0:
+                            firstSeconds = currSeconds
 
-                    # Detect if the QR time's second value has rolled over on this frame.
-                    # If so then this frame should be used to determine video start time using framerate math
-                    if currSeconds != firstSeconds:
-                        secondsIntoVideo = currentframe / fps
-                        print("Time rollover detected " + str(secondsIntoVideo) + " seconds into the video")
+                        # Detect if the QR time's second value has rolled over on this frame.
+                        # If so then this frame should be used to determine video start time using framerate math
+                        if currSeconds != firstSeconds:
+                            secondsIntoVideo = currentframe / fps
+                            print("Time rollover detected " + str(secondsIntoVideo) + " seconds into the video")
 
-                        # subtract seconds since beginning of video of current frame from the QR time to determine video start time
-                        videoStartTime = qrTimestamp - datetime.timedelta(seconds=secondsIntoVideo)
+                            # subtract seconds since beginning of video of current frame from the QR time to determine video start time
+                            videoStartTime = qrTimestamp - datetime.timedelta(seconds=secondsIntoVideo)
 
-                        print("Calculated video start time: " + str(videoStartTime.isoformat().replace("+00:00", "Z")))
-                    raise BreakIt
+                            print("Calculated video start time: " + str(videoStartTime.isoformat().replace("+00:00", "Z")))
+                            raise BreakIt()
+                catch(e):
+                    pass
 
                 currentframe += 1
             else:
