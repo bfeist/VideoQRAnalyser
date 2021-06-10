@@ -11,32 +11,44 @@ class BreakIt(Exception):
     pass
 
 
-def lookForQRcodes(thisFrame, currentFrame):
-    if currentFrame % 100 == 0:
-        print("Searching Frame# " + str(currentFrame), end="\r", flush=True)
+class ReturnStatus(object):
+    qrFound = False
+    qrData = ""
+    frameNumber = -1
+
+
+def lookForQRcodes(thisFrame, currentFrameNumber):
+    if currentFrameNumber % 10 == 0:
+        print("Searching Frame# " + str(currentFrameNumber), end="\r", flush=True)
     # find the barcodes in the frame and decode each of the barcodes
     decodedBarcodes = pyzbar.decode(thisFrame, symbols=[ZBarSymbol.QRCODE])
 
+    returnStatus = ReturnStatus()
+    returnStatus.qrFound = False
+
     # loop over the detected barcodes in the frame (there should only be one)
     for barcode in decodedBarcodes:
-        # print("\n")
-        # print("Type : ", barcode.type)
-
-        # print("Data : ", barcode.data)
-
+        # If QR found, then return its data
         if barcode.type == "QRCODE":
-            return barcode.data
-    return 0
+            returnStatus.qrFound = True
+            returnStatus.qrData = barcode.data
+            returnStatus.frameNumber = currentFrameNumber
+
+    return returnStatus
 
 
-def QRcodeWorkerCallback(result):
+def QRcodeWorkerCallback(returnStatus: ReturnStatus):
     global startTimeFound
-    global currentFrame
     global firstSeconds
-    if result != 0 and startTimeFound == False:
+    if returnStatus.qrFound != False and startTimeFound == False:
         # parse encoded time into date
-        qrTimestamp = dateutil.parser.isoparse(result.decode("utf-8"))
-        print("Frame# " + str(currentFrame) + " QR Timestamp: " + qrTimestamp.isoformat().replace("+00:00", "Z"))
+        qrTimestamp = dateutil.parser.isoparse(returnStatus.qrData.decode("utf-8"))
+        print(
+            "Frame# "
+            + str(returnStatus.frameNumber)
+            + " QR Timestamp: "
+            + qrTimestamp.isoformat().replace("+00:00", "Z")
+        )
         # get seconds value
         currSeconds = qrTimestamp.second
         if firstSeconds == 0:
@@ -67,7 +79,7 @@ if __name__ == "__main__":
     # get frames per second of video for use in start time calc
     fps = round(cam.get(cv2.CAP_PROP_FPS))
 
-    with Pool(processes=16) as pool:
+    with Pool(processes=8) as pool:
         # Loop through all of the frames in the video
 
         try:
@@ -85,6 +97,8 @@ if __name__ == "__main__":
                 if startTimeFound == True:
                     raise BreakIt
         except BreakIt:
+            print(res.get(timeout=1))
+            print("Search terminated")
             pass
     # Release all space once done
     cam.release()
