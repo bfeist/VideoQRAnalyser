@@ -33,8 +33,8 @@ if __name__ == "__main__":
     firstSeconds = 0
 
     # test video with CODA Clocksync ISO time QR code in it.
-    cam = cv2.VideoCapture("../vid/IMG_1722.MOV")
-    # cam = cv2.VideoCapture("N:\\Projects\\NASA_CODA\\CODA_data\\RockYard\\2021-05-13-QuadView-EVA_20.26.55.MP4")
+    # cam = cv2.VideoCapture("../vid/IMG_1722.MOV")
+    cam = cv2.VideoCapture("N:\\Projects\\NASA_CODA\\CODA_data\\RockYard\\2021-05-13-QuadView-EVA_20.26.55.MP4")
 
     # get frames per second of video for use in start time calc
     fps = round(cam.get(cv2.CAP_PROP_FPS))
@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
     # Step 1: Use pool of workers to look for QRs in frames of video.
     # When a QR is found, save the frame number where it would found for use in Step 2 below
-    with Pool() as pool:
+    with Pool(processes=os.cpu_count()) as pool:
         # Loop through all of the frames in the video
         while True:
             # reading from frame
