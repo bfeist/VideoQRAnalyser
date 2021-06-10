@@ -21,7 +21,7 @@ class ReturnStatus(object):
 def lookForQRcodes(thisFrame, currentFrameNumber):
     global firstQRFoundFrameNumber
     if currentFrameNumber % 100 == 0:
-        print("Searching Frame# " + str(currentFrameNumber), flush=True)
+        print("Searching Frame# " + str(currentFrameNumber), end="\r", flush=True)
 
     returnStatus = ReturnStatus()
     returnStatus.qrFound = False
@@ -60,8 +60,8 @@ if __name__ == "__main__":
     firstSeconds = 0
 
     # test video with CODA Clocksync ISO time QR code in it.
-    cam = cv2.VideoCapture("../vid/IMG_1722.MOV")
-    # cam = cv2.VideoCapture("N:\\Projects\\NASA_CODA\\CODA_data\\RockYard\\2021-05-13-QuadView-EVA_20.26.55.MP4")
+    # cam = cv2.VideoCapture("../vid/IMG_1722.MOV")
+    cam = cv2.VideoCapture("N:\\Projects\\NASA_CODA\\CODA_data\\RockYard\\2021-05-13-QuadView-EVA_20.26.55.MP4")
 
     # get frames per second of video for use in start time calc
     fps = round(cam.get(cv2.CAP_PROP_FPS))
