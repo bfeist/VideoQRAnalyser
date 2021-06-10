@@ -11,11 +11,21 @@ class BreakIt(Exception):
     pass
 
 
+class ReturnStatus(object):
+    qrFound = False
+    qrData = ""
+    frameNumber = -1
+
+
 # worker process that searches a frame of video for a QR code
 def lookForQRcodes(thisFrame, currentFrameNumber):
     global firstQRFoundFrameNumber
     if currentFrameNumber % 100 == 0:
-        print("Searching Frame# " + str(currentFrameNumber), end="\r", flush=True)
+        print("Searching Frame# " + str(currentFrameNumber), flush=True)
+
+    returnStatus = ReturnStatus()
+    returnStatus.qrFound = False
+
     # find the barcodes in the frame and decode each of the barcodes
     decodedBarcodes = pyzbar.decode(thisFrame, symbols=[ZBarSymbol.QRCODE])
 
@@ -23,8 +33,25 @@ def lookForQRcodes(thisFrame, currentFrameNumber):
     for barcode in decodedBarcodes:
         # If QR found, then set the global frame number where it was found
         if barcode.type == "QRCODE":
-            # TODO: make this ignore QR codes that aren't UTC timestamps
-            firstQRFoundFrameNumber = currentFrameNumber
+            returnStatus.qrFound = True
+            returnStatus.qrData = barcode.data
+            returnStatus.frameNumber = currentFrameNumber
+
+    return returnStatus
+
+
+def QRcodeWorkerCallback(returnStatus: ReturnStatus):
+    global firstQRFoundFrameNumber
+    if returnStatus.qrFound != False and firstQRFoundFrameNumber == 0:
+        # parse encoded time into date
+        qrTimestamp = dateutil.parser.isoparse(returnStatus.qrData.decode("utf-8"))
+        print(
+            "Frame# "
+            + str(returnStatus.frameNumber)
+            + " Pool worker found QR Timestamp: "
+            + qrTimestamp.isoformat().replace("+00:00", "Z")
+        )
+        firstQRFoundFrameNumber = returnStatus.frameNumber
 
 
 if __name__ == "__main__":
@@ -33,8 +60,8 @@ if __name__ == "__main__":
     firstSeconds = 0
 
     # test video with CODA Clocksync ISO time QR code in it.
-    # cam = cv2.VideoCapture("../vid/IMG_1722.MOV")
-    cam = cv2.VideoCapture("N:\\Projects\\NASA_CODA\\CODA_data\\RockYard\\2021-05-13-QuadView-EVA_20.26.55.MP4")
+    cam = cv2.VideoCapture("../vid/IMG_1722.MOV")
+    # cam = cv2.VideoCapture("N:\\Projects\\NASA_CODA\\CODA_data\\RockYard\\2021-05-13-QuadView-EVA_20.26.55.MP4")
 
     # get frames per second of video for use in start time calc
     fps = round(cam.get(cv2.CAP_PROP_FPS))
@@ -51,6 +78,7 @@ if __name__ == "__main__":
     # When a QR is found, save the frame number where it would found for use in Step 2 below
     with Pool(processes=os.cpu_count()) as pool:
         # Loop through all of the frames in the video
+
         while True:
             # reading from frame
             ret, frame = cam.read()
@@ -58,7 +86,7 @@ if __name__ == "__main__":
             # if frames remaining, continue reading frames
             if ret:
                 # send frame to pool worker process
-                res = pool.apply_async(lookForQRcodes, (frame, currentFrame))
+                res = pool.apply_async(lookForQRcodes, (frame, currentFrame), callback=QRcodeWorkerCallback)
                 currentFrame += 1
             else:
                 break
