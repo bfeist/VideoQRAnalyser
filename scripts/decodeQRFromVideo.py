@@ -18,7 +18,7 @@ class ReturnStatus(object):
 
 
 def lookForQRcodes(thisFrame, currentFrameNumber):
-    if currentFrameNumber % 10 == 0:
+    if currentFrameNumber % 100 == 0:
         print("Searching Frame# " + str(currentFrameNumber), end="\r", flush=True)
     # find the barcodes in the frame and decode each of the barcodes
     decodedBarcodes = pyzbar.decode(thisFrame, symbols=[ZBarSymbol.QRCODE])
@@ -102,7 +102,7 @@ if __name__ == "__main__":
                 for barcode in decodedBarcodes:
                     # If QR found, then return its data
                     if barcode.type == "QRCODE":
-                        qrTimestamp = dateutil.parser.isoparse(barcode.decode("utf-8"))
+                        qrTimestamp = dateutil.parser.isoparse(barcode.data.decode("utf-8"))
                         print(
                             "Frame# "
                             + str(currentFrame)
@@ -130,7 +130,6 @@ if __name__ == "__main__":
 
                 currentFrame += 1
     except BreakIt:
-        print(res.get(timeout=1))
         print("Search terminated")
         pass
 
