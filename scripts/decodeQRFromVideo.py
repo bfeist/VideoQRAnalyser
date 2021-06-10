@@ -9,7 +9,7 @@ from multiprocessing import Process, Value, Array, Pool
 
 def f(thisFrame, currentFrame):
     if currentFrame % 100 == 0:
-        print("process id:", os.getpid(), " Searching Frame# " + str(currentFrame), end="\r", flush=True)
+        print("Searching Frame# " + str(currentFrame), end="\r", flush=True)
     # find the barcodes in the frame and decode each of the barcodes
     decodedBarcodes = pyzbar.decode(thisFrame, symbols=[ZBarSymbol.QRCODE])
 
@@ -23,7 +23,13 @@ def f(thisFrame, currentFrame):
         if barcode.type == "QRCODE":
             # parse encoded time into date
             qrTimestamp = dateutil.parser.isoparse(barcode.data.decode("utf-8"))
-            print("QR Timestamp: " + qrTimestamp.isoformat().replace("+00:00", "Z") + "\n")
+            print(
+                "Frame# "
+                + str(currentFrame)
+                + " QR Timestamp: "
+                + qrTimestamp.isoformat().replace("+00:00", "Z")
+                + "\n"
+            )
 
             # get seconds value
             # currSeconds = qrTimestamp.second
