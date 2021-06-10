@@ -2,7 +2,7 @@ import cv2
 from pyzbar import pyzbar
 from pyzbar.pyzbar import ZBarSymbol
 import os
-import datetime
+from datetime import datetime, timedelta
 import dateutil.parser
 from multiprocessing import Pool
 
@@ -17,11 +17,25 @@ class ReturnStatus(object):
     frameNumber = -1
 
 
+def secondsToText(seconds):
+    seconds = seconds % (24 * 3600)
+    hour = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    seconds %= 60
+
+    return "%02d:%02d:%02d" % (hour, minutes, seconds)
+
+
 # worker process that searches a frame of video for a QR code
-def lookForQRcodes(thisFrame, currentFrameNumber):
+def lookForQRcodes(thisFrame, currentFrameNumber, fps):
     global firstQRFoundFrameNumber
     if currentFrameNumber % 100 == 0:
-        print("Searching Frame# " + str(currentFrameNumber), end="\r", flush=True)
+        print(
+            "Searching: " + secondsToText(currentFrameNumber / fps) + " (hh:mm:ss) - frame# " + str(currentFrameNumber),
+            end="\r",
+            flush=True,
+        )
 
     returnStatus = ReturnStatus()
     returnStatus.qrFound = False
@@ -66,6 +80,7 @@ if __name__ == "__main__":
     # get frames per second of video for use in start time calc
     fps = round(cam.get(cv2.CAP_PROP_FPS))
 
+    print("Searching video files for QR code timestamps.")
     print(
         "Your CPU has "
         + str(os.cpu_count())
@@ -86,7 +101,7 @@ if __name__ == "__main__":
             # if frames remaining, continue reading frames
             if ret:
                 # send frame to pool worker process
-                res = pool.apply_async(lookForQRcodes, (frame, currentFrame), callback=QRcodeWorkerCallback)
+                res = pool.apply_async(lookForQRcodes, (frame, currentFrame, fps), callback=QRcodeWorkerCallback)
                 currentFrame += 1
             else:
                 break
