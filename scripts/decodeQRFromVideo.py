@@ -97,7 +97,7 @@ if __name__ == "__main__":
     # get frames per second of video for use in start time calc
     fps = round(cam.get(cv2.CAP_PROP_FPS))
 
-    print("Searching video files for QR code timestamps.")
+    print("Searching video file for QR code UTC timestamps.")
     print(
         "Your CPU has "
         + str(os.cpu_count())
