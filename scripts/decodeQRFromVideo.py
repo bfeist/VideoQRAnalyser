@@ -101,7 +101,7 @@ if __name__ == "__main__":
     print(
         "Your CPU has "
         + str(os.cpu_count())
-        + " processors. Spinning up worker pool of "
+        + " logical cores. Spinning up worker pool of "
         + str(os.cpu_count())
         + " QR searchers"
     )
