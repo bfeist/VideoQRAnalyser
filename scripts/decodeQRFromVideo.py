@@ -2,9 +2,10 @@ import cv2
 from pyzbar import pyzbar
 from pyzbar.pyzbar import ZBarSymbol
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 import dateutil.parser
 from multiprocessing import Pool
+import sys
 
 
 class BreakIt(Exception):
@@ -25,6 +26,15 @@ def secondsToText(seconds):
     seconds %= 60
 
     return "%02d:%02d:%02d" % (hour, minutes, seconds)
+
+
+def get_arg(index):
+    try:
+        sys.argv[index]
+    except IndexError:
+        return ""
+    else:
+        return sys.argv[index]
 
 
 # worker process that searches a frame of video for a QR code
@@ -73,9 +83,16 @@ if __name__ == "__main__":
     currentFrame = 0
     firstSeconds = 0
 
-    # test video with CODA Clocksync ISO time QR code in it.
-    # cam = cv2.VideoCapture("../vid/IMG_1722.MOV")
-    cam = cv2.VideoCapture("N:\\Projects\\NASA_CODA\\CODA_data\\RockYard\\2021-05-13-QuadView-EVA_20.26.55.MP4")
+    # get video file path argument
+    if get_arg(1) == "":
+        # test video with CODA Clocksync ISO time QR code in it.
+        # cam = cv2.VideoCapture("../vid/IMG_1722.MOV")
+        print("Video file path argument missing. Using default.")
+        vidPath = "N:\\Projects\\NASA_CODA\\CODA_data\\RockYard\\2021-05-13-QuadView-EVA_20.26.55.MP4"
+    else:
+        vidPath = str(get_arg(1))
+
+    cam = cv2.VideoCapture(vidPath)
 
     # get frames per second of video for use in start time calc
     fps = round(cam.get(cv2.CAP_PROP_FPS))
@@ -151,7 +168,7 @@ if __name__ == "__main__":
                             print("Time rollover detected " + str(secondsIntoVideo) + " seconds into the video")
 
                             # subtract seconds since beginning of video of current frame from the QR time to determine video start time
-                            videoStartTime = qrTimestamp - datetime.timedelta(seconds=secondsIntoVideo)
+                            videoStartTime = qrTimestamp - timedelta(seconds=secondsIntoVideo)
 
                             print(
                                 "Calculated video start time: " + str(videoStartTime.isoformat().replace("+00:00", "Z"))
