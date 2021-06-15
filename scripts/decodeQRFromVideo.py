@@ -106,8 +106,8 @@ if __name__ == "__main__":
         + " QR searchers"
     )
 
-    # Step 1: Use pool of workers to look for QRs in frames of video.
-    # When a QR is found, save the frame number where it would found for use in Step 2 below
+    # Step 1: Use pool of workers to look for QRs in frames of video in parallel
+    # When a QR is found, save the frame number where it was found for use in Step 2 below
     with Pool(processes=os.cpu_count()) as pool:
         # Loop through all of the frames in the video
 
@@ -125,7 +125,7 @@ if __name__ == "__main__":
             if firstQRFoundFrameNumber != 0:
                 break
 
-    # Step 2: Starting at the frame number where the first QR code image was found using the parallel processing method above
+    # Step 2: Starting at the frame number where the first QR code image was found in step 1 above
     # Use single-thread method to step through frames of video looking for when the second ticks over
     # and use that frame number to determine precise video start time
 
