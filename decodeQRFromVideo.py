@@ -6,6 +6,7 @@ from datetime import timedelta
 import dateutil.parser
 from multiprocessing import Pool
 import sys
+import json
 
 
 class BreakIt(Exception):
@@ -39,7 +40,6 @@ def get_arg(index):
 
 # worker process that searches a frame of video for a QR code
 def lookForQRcodes(thisFrame, currentFrameNumber, fps):
-    global firstQRFoundFrameNumber
     if currentFrameNumber % 100 == 0:
         print(
             "Searching: " + secondsToText(currentFrameNumber / fps) + " (hh:mm:ss) - frame# " + str(currentFrameNumber),
@@ -65,8 +65,9 @@ def lookForQRcodes(thisFrame, currentFrameNumber, fps):
 
 
 def QRcodeWorkerCallback(returnStatus: ReturnStatus):
-    global firstQRFoundFrameNumber
-    if returnStatus.qrFound != False and firstQRFoundFrameNumber == 0:
+    global QRFoundFrameNumber
+    global QRFoundTimestamp
+    if returnStatus.qrFound != False and QRFoundFrameNumber == 0:
         # parse encoded time into date
         qrTimestamp = dateutil.parser.isoparse(returnStatus.qrData.decode("utf-8"))
         print(
@@ -75,73 +76,37 @@ def QRcodeWorkerCallback(returnStatus: ReturnStatus):
             + " Pool worker found QR Timestamp: "
             + qrTimestamp.isoformat().replace("+00:00", "Z")
         )
-        firstQRFoundFrameNumber = returnStatus.frameNumber
+        QRFoundFrameNumber = returnStatus.frameNumber
+        QRFoundTimestamp = qrTimestamp
 
 
-if __name__ == "__main__":
-    firstQRFoundFrameNumber = 0
-    currentFrame = 0
+def searchSingleThreaded():
+    global QRFoundFrameNumber
+    global QRFoundTimestamp
+    global videoStartTime
+    global currentFrame
+
     firstSeconds = 0
-
-    # get video file path argument
-    if get_arg(1) == "":
-        # test video with CODA Clocksync ISO time QR code in it.
-        # cam = cv2.VideoCapture("../vid/IMG_1722.MOV")
-        print("Video file path argument missing. Using default.")
-        vidPath = "N:\\Projects\\NASA_CODA\\CODA_data\\RockYard\\2021-05-13-QuadView-EVA_20.26.55.MP4"
-    else:
-        vidPath = str(get_arg(1))
-
-    cam = cv2.VideoCapture(vidPath)
-
-    # get frames per second of video for use in start time calc
-    fps = round(cam.get(cv2.CAP_PROP_FPS))
-
-    print("Searching video file for QR code UTC timestamps.")
-    print(
-        "Your CPU has "
-        + str(os.cpu_count())
-        + " logical cores. Spinning up worker pool of "
-        + str(os.cpu_count())
-        + " QR searchers"
-    )
-
-    # Step 1: Use pool of workers to look for QRs in frames of video in parallel
-    # When a QR is found, save the frame number where it was found for use in Step 2 below
-    with Pool(processes=os.cpu_count()) as pool:
-        # Loop through all of the frames in the video
-
-        while True:
-            # reading from frame
-            ret, frame = cam.read()
-
-            # if frames remaining, continue reading frames
-            if ret:
-                # send frame to pool worker process
-                res = pool.apply_async(lookForQRcodes, (frame, currentFrame, fps), callback=QRcodeWorkerCallback)
-                currentFrame += 1
-            else:
-                break
-            if firstQRFoundFrameNumber != 0:
-                break
 
     # Step 2: Starting at the frame number where the first QR code image was found in step 1 above
     # Use single-thread method to step through frames of video looking for when the second ticks over
     # and use that frame number to determine precise video start time
 
     # start reading at frame number where the first QR code was found
-    currentFrame = firstQRFoundFrameNumber
+    currentFrame = QRFoundFrameNumber
     cam.set(cv2.CAP_PROP_POS_FRAMES, currentFrame)
 
     try:
-        while True:
+        # Loop through the next 100 frames looking frame rollover start time
+        print("Single thread search next 100 frames for rollover")
+        while currentFrame - QRFoundFrameNumber < 100:
             # reading from frame
             ret, frame = cam.read()
 
             # if frames remaining, continue reading frames
             if ret:
                 if currentFrame % 10 == 0:
-                    print("Single thread - searching Frame# " + str(currentFrame), end="\r", flush=True)
+                    print("- searching Frame# " + str(currentFrame), end="\r", flush=True)
                 # find the barcodes in the frame and decode each of the barcodes
                 decodedBarcodes = pyzbar.decode(frame, symbols=[ZBarSymbol.QRCODE])
 
@@ -167,12 +132,8 @@ if __name__ == "__main__":
                             secondsIntoVideo = currentFrame / fps
                             print("Time rollover detected " + str(secondsIntoVideo) + " seconds into the video")
 
-                            # subtract seconds since beginning of video of current frame from the QR time to determine video start time
-                            videoStartTime = qrTimestamp - timedelta(seconds=secondsIntoVideo)
-
-                            print(
-                                "Calculated video start time: " + str(videoStartTime.isoformat().replace("+00:00", "Z"))
-                            )
+                            QRFoundFrameNumber = currentFrame
+                            QRFoundTimestamp = qrTimestamp
                             raise BreakIt
 
                 currentFrame += 1
@@ -180,5 +141,83 @@ if __name__ == "__main__":
         print("Search terminated")
         pass
 
-    # Release all space once done
-    cam.release()
+    secondsIntoVideo = QRFoundFrameNumber / fps
+    # subtract seconds since beginning of video of current frame from the QR time to determine video start time
+    videoStartTime = QRFoundTimestamp - timedelta(seconds=secondsIntoVideo)
+
+    print("Calculated video start time: " + str(videoStartTime.isoformat().replace("+00:00", "Z")) + "\n")
+
+
+if __name__ == "__main__":
+    QRFoundFrameNumber = 0
+    QRFoundTimestamp = None
+    videoStartTime = None
+    currentFrame = 0
+
+    videoFeedsPath = r"N:\Projects\NASA_CODA\CODA_Box_data\box_mirror\CODA\DRATS\2021-10-22\Video-No-Audio\\"
+    videoFilesWithDir = []
+    for videoFilename in os.listdir(videoFeedsPath):
+        if videoFilename.lower().endswith(".mp4") or videoFilename.lower().endswith(".mov"):
+            videoFilesWithDir.append(videoFilename)
+
+    print(
+        "Your CPU has "
+        + str(os.cpu_count())
+        + " logical cores. Spinning up worker pool of "
+        + str(os.cpu_count())
+        + " QR searchers"
+    )
+
+    videoList = []
+    for videoFilename in videoFilesWithDir:
+        videoFullPath = videoFeedsPath + videoFilename
+
+        QRFoundFrameNumber = 0
+        QRFoundTimestamp = None
+        videoStartTime = None
+        currentFrame = 0
+        tempDict = {}
+
+        # test video with CODA Clocksync ISO time QR code in it.
+        cam = cv2.VideoCapture(videoFullPath)  # open the video file
+
+        # get frames per second of video for use in start time calc
+        fps = round(cam.get(cv2.CAP_PROP_FPS))
+
+        print("Searching " + videoFilename + " for QR code UTC timestamps.")
+
+        # Step 1: Use pool of workers to look for QRs in frames of video in parallel
+        # When a QR is found, save the frame number where it was found for use in Step 2 below
+        with Pool(processes=os.cpu_count()) as pool:
+            # Loop through all of the frames in the video
+
+            while True:
+                # reading from frame
+                ret, frame = cam.read()
+
+                # if frames remaining, continue reading frames
+                if ret:
+                    # send frame to pool worker process
+                    res = pool.apply_async(lookForQRcodes, (frame, currentFrame, fps), callback=QRcodeWorkerCallback)
+                    currentFrame += 1
+                else:
+                    break
+                if QRFoundFrameNumber != 0:
+                    break
+
+        if QRFoundFrameNumber != 0:
+            searchSingleThreaded()
+
+        # Release all space once done
+        cam.release()
+
+        tempDict["videoFilename"] = videoFilename
+        tempDict["FrameNumberQRFound"] = QRFoundFrameNumber
+        tempDict["TimestampInQR"] = (
+            QRFoundTimestamp.isoformat().replace("+00:00", "Z") if QRFoundTimestamp != None else ""
+        )
+        tempDict["videoStartTime"] = videoStartTime.isoformat().replace("+00:00", "Z") if videoStartTime != None else ""
+        videoList.append(tempDict)
+
+    with open(videoFeedsPath + "videoStartTimes.json", "w") as outfile:
+        json.dump(videoList, outfile, indent=4, default=str)
