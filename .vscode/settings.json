@@ -5,7 +5,10 @@
   "python.formatting.provider": "black",
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "python.formatting.blackArgs": ["--line-length", "120"],
+
   "[python]": {
-    "editor.defaultFormatter": null
-  }
+    "editor.defaultFormatter": "ms-python.python"
+  },
+  "python.linting.pylintEnabled": true,
+  "python.linting.enabled": false
 }

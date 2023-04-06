@@ -7,6 +7,8 @@ import dateutil.parser
 from multiprocessing import Pool
 import sys
 import json
+import subprocess
+from datetime import datetime, timedelta
 
 
 class BreakIt(Exception):
@@ -83,7 +85,7 @@ def QRcodeWorkerCallback(returnStatus: ReturnStatus):
 def searchSingleThreaded():
     global QRFoundFrameNumber
     global QRFoundTimestamp
-    global videoStartTime
+    global startTimeFromQR
     global currentFrame
 
     firstSeconds = 0
@@ -125,6 +127,8 @@ def searchSingleThreaded():
                         currSeconds = qrTimestamp.second
                         if firstSeconds == 0:
                             firstSeconds = currSeconds
+                            QRFoundFrameNumber = currentFrame
+                            QRFoundTimestamp = qrTimestamp
 
                         # Detect if the QR time's second value has rolled over on this frame.
                         # If so then this frame should be used to determine video start time using framerate math
@@ -137,26 +141,32 @@ def searchSingleThreaded():
                             raise BreakIt
 
                 currentFrame += 1
+        raise BreakIt
+
     except BreakIt:
         print("Search terminated")
         pass
 
     secondsIntoVideo = QRFoundFrameNumber / fps
     # subtract seconds since beginning of video of current frame from the QR time to determine video start time
-    videoStartTime = QRFoundTimestamp - timedelta(seconds=secondsIntoVideo)
+    startTimeFromQR = QRFoundTimestamp - timedelta(seconds=secondsIntoVideo)
 
-    print("Calculated video start time: " + str(videoStartTime.isoformat().replace("+00:00", "Z")) + "\n")
+    print("Calculated video start time: " + str(startTimeFromQR.isoformat().replace("+00:00", "Z")) + "\n")
 
 
 if __name__ == "__main__":
     QRFoundFrameNumber = 0
     QRFoundTimestamp = None
-    videoStartTime = None
+    QRFoundFilename = None
+    startTimeFromQR = None
     currentFrame = 0
 
-    videoFeedsPath = r"N:\Projects\NASA_CODA\CODA_Box_data\box_mirror\CODA\DRATS\2021-10-22\Video-No-Audio\\"
+    # videoFeedsPath = r"N:\Projects\NASA_CODA\CODA_Box_data\box_mirror\CODA\DRATS\2021-10-22\Video-No-Audio\\"
+    videoFeedsPath = r"H:\GoPros\4_1_sat_field\Taracam_without\\"
+    # videoFeedsPath = get_arg(1)
     videoFilesWithDir = []
-    for videoFilename in os.listdir(videoFeedsPath):
+
+    for videoFilename in sorted(os.listdir(videoFeedsPath)):
         if videoFilename.lower().endswith(".mp4") or videoFilename.lower().endswith(".mov"):
             videoFilesWithDir.append(videoFilename)
 
@@ -174,7 +184,8 @@ if __name__ == "__main__":
 
         QRFoundFrameNumber = 0
         QRFoundTimestamp = None
-        videoStartTime = None
+        startTimeReported = None
+        startTimeFromQR = None
         currentFrame = 0
         tempDict = {}
 
@@ -211,13 +222,49 @@ if __name__ == "__main__":
         # Release all space once done
         cam.release()
 
-        tempDict["videoFilename"] = videoFilename
-        tempDict["FrameNumberQRFound"] = QRFoundFrameNumber
-        tempDict["TimestampInQR"] = (
-            QRFoundTimestamp.isoformat().replace("+00:00", "Z") if QRFoundTimestamp != None else ""
-        )
-        tempDict["videoStartTime"] = videoStartTime.isoformat().replace("+00:00", "Z") if videoStartTime != None else ""
-        videoList.append(tempDict)
+        if QRFoundFrameNumber != 0:
+            # stop loop if QR found
+            QRFoundFilename = videoFilename
+            break
 
-    with open(videoFeedsPath + "videoStartTimes.json", "w") as outfile:
-        json.dump(videoList, outfile, indent=4, default=str)
+    if QRFoundFrameNumber != 0:
+        # a QR was found, so save the video start time to an offset json file
+
+        # get the reported video start time
+        print("Processing video: " + os.path.join(videoFeedsPath, videoFilename))
+        # use external ffprobe command to get each video segment duration
+        tt = subprocess.Popen(
+            'ffprobe -i "' + os.path.join(videoFeedsPath, videoFilename) + '" -show_format',
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=subprocess.PIPE,
+        )
+        videoFormatString, stderr = tt.communicate()
+        videoFormatString = str(videoFormatString)
+
+        # get video start time
+        for line in videoFormatString.split("\\r\\n"):
+            if line.startswith("TAG:creation_time="):
+                startTimeISO = line.split("=")[1]
+                startTime = datetime.strptime(startTimeISO, "%Y-%m-%dT%H:%M:%S.%fZ")
+                # # add 6 hours to start time to get UTC time
+                # startTime = startTime + timedelta(hours=6)
+                # get iso string of new start time
+                startTimeReported = startTime.isoformat() + "Z"
+                break
+
+        tempDict["reported"] = startTimeReported
+        tempDict["correctedUTC"] = startTimeFromQR.isoformat().replace("+00:00", "Z")
+
+        with open(videoFeedsPath + "_offset2.json", "w") as outfile:
+            json.dump(tempDict, outfile, indent=4, default=str)
+
+        # tempDict["videoFilename"] = videoFilename
+        # tempDict["FrameNumberQRFound"] = QRFoundFrameNumber
+        # tempDict["TimestampInQR"] = (
+        #     QRFoundTimestamp.isoformat().replace("+00:00", "Z") if QRFoundTimestamp != None else ""
+        # )
+        # tempDict["videoStartTime"] = videoStartTime.isoformat().replace("+00:00", "Z") if videoStartTime != None else ""
+
+    # with open(videoFeedsPath + "videoStartTimes.json", "w") as outfile:
+    #     json.dump(videoList, outfile, indent=4, default=str)
