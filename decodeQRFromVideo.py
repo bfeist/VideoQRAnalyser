@@ -10,6 +10,8 @@ import json
 import subprocess
 from datetime import datetime, timedelta
 
+os.environ['OPENCV_FFMPEG_READ_ATTEMPTS'] = '8192'
+
 
 class BreakIt(Exception):
     pass
@@ -162,8 +164,18 @@ if __name__ == "__main__":
     currentFrame = 0
 
     # videoFeedsPath = r"N:\Projects\NASA_CODA\CODA_Box_data\box_mirror\CODA\DRATS\2021-10-22\Video-No-Audio\\"
-    videoFeedsPath = r"H:\GoPros\4_1_sat_field\Taracam_without\\"
+    # videoFeedsPath = r"H:\GoPros\4_1_sat_field\Taracam_without\\"
     # videoFeedsPath = get_arg(1)
+#     videoFeedsPath = r"N:\\Projects\\NASA_CODA\\JETT5\\JETT5_Data_Share"
+#     videoFeedsPath= os.path.join(
+#     "N:",
+#     os.sep,
+#     "Projects",
+#     "NASA_CODA",
+#     "JETT5",
+#     "JETT5_Data_Share",    
+# )
+    videoFeedsPath = r"N:\Projects\NASA_CODA\tara_kilbourne\raw_data\UAV Video ALL STATIONS"
     videoFilesWithDir = []
 
     for videoFilename in sorted(os.listdir(videoFeedsPath)):
@@ -180,7 +192,9 @@ if __name__ == "__main__":
 
     videoList = []
     for videoFilename in videoFilesWithDir:
-        videoFullPath = videoFeedsPath + videoFilename
+        # if videoFilename != "GOPR0416_trans.MP4":
+        #     continue
+        videoFullPath = os.path.join(videoFeedsPath, videoFilename)
 
         QRFoundFrameNumber = 0
         QRFoundTimestamp = None
@@ -256,7 +270,7 @@ if __name__ == "__main__":
         tempDict["reported"] = startTimeReported
         tempDict["correctedUTC"] = startTimeFromQR.isoformat().replace("+00:00", "Z")
 
-        with open(videoFeedsPath + "_offset2.json", "w") as outfile:
+        with open(os.path.join(videoFeedsPath, "_offset2.json"), "w") as outfile:
             json.dump(tempDict, outfile, indent=4, default=str)
 
         # tempDict["videoFilename"] = videoFilename
